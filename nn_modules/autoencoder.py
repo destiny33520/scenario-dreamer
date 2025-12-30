@@ -29,6 +29,7 @@ class ScenarioDreamerEncoder(nn.Module):
                                               hidden_dim=self.cfg.hidden_dim, 
                                               n_hidden=2, 
                                               output_dim=self.cfg.max_num_lanes+1)
+        #lane是source,query是target,将lane提取数据到query
         # Fuse lane information into the query token
         self.l2q_transformer_layer = AttentionLayer(hidden_dim=self.cfg.hidden_dim,
                                                     num_heads=self.cfg.num_heads,
