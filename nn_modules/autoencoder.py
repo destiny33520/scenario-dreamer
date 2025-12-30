@@ -153,7 +153,8 @@ class ScenarioDreamerEncoder(nn.Module):
         
         if return_lane_embeddings:
             return lane_embeddings.detach().cpu().numpy()
-        
+            
+        #lane_cond_dis_logits是lane conditional distribution的logits(未归一化分类分数)，每个样本一个分类输出
         lane_cond_dis_logits = self.pred_lane_cond_dis(query_embeddings)
         lane_cond_dis_prob = F.softmax(lane_cond_dis_logits, -1)
         agent_mu = self.agent_mu(agent_embeddings)
