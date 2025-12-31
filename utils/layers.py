@@ -95,23 +95,27 @@ class AttentionLayer(MessagePassing):
         self.has_pos_emb = has_pos_emb
         self.pos_emb_hidden_dim = pos_emb_hidden_dim
         self.scale = head_dim ** -0.5
-
+        #一次线性映射同时生成所有 head 的 Q/K/V” 的写法，而不是“每个 head 各自一个 Linear
         self.to_q = nn.Linear(hidden_dim, head_dim * num_heads)
         self.to_k = nn.Linear(hidden_dim, head_dim * num_heads, bias=False)
         self.to_v = nn.Linear(hidden_dim, head_dim * num_heads)
+        #为l2l设置，因为能学到车道之间的关系
         if has_pos_emb:
             self.to_k_r = nn.Linear(pos_emb_hidden_dim, head_dim * num_heads, bias=False)
             self.to_v_r = nn.Linear(pos_emb_hidden_dim, head_dim * num_heads)
+        #to_s：把目标节点自身特征投影到多头空间，作为融合参照，to_g：根据“聚合结果 + 目标自身”计算门控系数，to_out：把多头空间的输出再投影回 hidden_dim（标准 MHA 的输出投影）
         self.to_s = nn.Linear(hidden_dim, head_dim * num_heads)
         self.to_g = nn.Linear(head_dim * num_heads + hidden_dim, head_dim * num_heads)
         self.to_out = nn.Linear(head_dim * num_heads, hidden_dim)
         self.attn_drop = nn.Dropout(dropout)
+        #前馈网络,升维之后再降维，relu激活函数
         self.ff_mlp = nn.Sequential(
             nn.Linear(hidden_dim, self.feedforward_dim),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
             nn.Linear(self.feedforward_dim, hidden_dim),
         )
+        #二部图是否为，在注意力之前做src/dst分别做layernorm
         if bipartite:
             self.attn_prenorm_x_src = nn.LayerNorm(hidden_dim)
             self.attn_prenorm_x_dst = nn.LayerNorm(hidden_dim)
