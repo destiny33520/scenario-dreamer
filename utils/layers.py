@@ -115,7 +115,7 @@ class AttentionLayer(MessagePassing):
             nn.Dropout(dropout),
             nn.Linear(self.feedforward_dim, hidden_dim),
         )
-        #二部图是否为，在注意力之前做src/dst分别做layernorm
+        #二部图是否为，在注意力之前做src/dst分别做layernorm，bipartite=True时，交叉注意力,bipartite=False时，是自注意力，共用LN即可
         if bipartite:
             self.attn_prenorm_x_src = nn.LayerNorm(hidden_dim)
             self.attn_prenorm_x_dst = nn.LayerNorm(hidden_dim)
@@ -128,7 +128,7 @@ class AttentionLayer(MessagePassing):
         self.ff_prenorm = nn.LayerNorm(hidden_dim)
         self.ff_postnorm = nn.LayerNorm(hidden_dim)
         self.apply(weight_init)
-
+    
     def forward(self, x, r, edge_index):
         if isinstance(x, torch.Tensor):
             x_src = x_dst = self.attn_prenorm_x_src(x)
@@ -137,6 +137,7 @@ class AttentionLayer(MessagePassing):
             x_src = self.attn_prenorm_x_src(x_src)
             x_dst = self.attn_prenorm_x_dst(x_dst)
             x = x[1]
+        #如果有位置编码，r为图边特征，像lane_conn_embeddings:车道连接类型、相对几何信息等
         if self.has_pos_emb and r is not None:
             r = self.attn_prenorm_r(r)
         x = x + self.attn_postnorm(self._attn_block(x_src, x_dst, r, edge_index))
