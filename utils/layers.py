@@ -140,10 +140,12 @@ class AttentionLayer(MessagePassing):
         #如果有位置编码，r为图边特征，像lane_conn_embeddings:车道连接类型、相对几何信息等
         if self.has_pos_emb and r is not None:
             r = self.attn_prenorm_r(r)
+        #实现transformer注意力子层的残差连接+后归一化
         x = x + self.attn_postnorm(self._attn_block(x_src, x_dst, r, edge_index))
+        #Transformer的前馈网络子层，同时采用残差连接+LN
         x = x + self.ff_postnorm(self._ff_block(self.ff_prenorm(x)))
         return x
-
+    # message为propagate自动调用，计算每条边的信息
     def message(self, q_i, k_j, v_j, r, index, ptr):
         if self.has_pos_emb and r is not None:
             k_j = k_j + self.to_k_r(r).view(-1, self.num_heads, self.head_dim)
@@ -157,7 +159,7 @@ class AttentionLayer(MessagePassing):
         inputs = inputs.view(-1, self.num_heads * self.head_dim)
         g = torch.sigmoid(self.to_g(torch.cat([inputs, x_dst], dim=-1)))
         return inputs + g * (self.to_s(x_dst) - inputs)
-
+    #在图结构(edge_index)上实现一次多头注意力的消息传递聚合，把src节点的V按照dst节点的Q与src节点的K的相似度加权聚合到dst上，然后再投影回hidden_dim
     def _attn_block(self, x_src, x_dst, r, edge_index):
         q = self.to_q(x_dst).view(-1, self.num_heads, self.head_dim)
         k = self.to_k(x_src).view(-1, self.num_heads, self.head_dim)
